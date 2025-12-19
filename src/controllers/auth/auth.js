@@ -7,17 +7,43 @@ const supabaseKey = process.env.SUPABASE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Controlador para registrar un nuevo usuario
+// Controlador para registrar un nuevo usuario
 const registerUser = async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, name } = req.body; // Se añade el campo 'name'
 
   try {
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    // Crear el usuario en Supabase
+    const { data: user, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+    });
 
-    if (error) {
-      return res.status(400).json({ error: error.message });
+    if (signUpError) {
+      return res.status(400).json({ error: signUpError.message });
     }
 
-    res.status(201).json({ message: "Usuario registrado exitosamente", data });
+    // Crear el perfil del usuario
+    const { error: profileError } = await supabase.from("profiles").insert({
+      id: user.user.id,
+      name,
+    });
+
+    if (profileError) {
+      return res.status(400).json({ error: profileError.message });
+    }
+
+    const { error: user_rolesError } = await supabase.from("user_roles").insert({
+        user_id: user.user.id,
+      });
+
+    if (user_rolesError) {
+      return res.status(400).json({ error: user_rolesError.message });
+    }
+
+    res.status(201).json({
+      message: "Usuario registrado exitosamente",
+      user: user.user,
+    });
   } catch (err) {
     res.status(500).json({ error: "Error interno del servidor" });
   }
