@@ -34,7 +34,7 @@ const register = async (req, res) => {
       email,
       password,
       options: {
-        emailRedirectTo: process.env.SUPABASE_EMAIL_REDIRECT_TO,
+        emailRedirectTo: "http://localhost:3730/auth/confirm",
       },
     });
 
@@ -102,9 +102,7 @@ const login = async (req, res) => {
 
     return res.status(200).json({ message: "Login exitoso", user: data.user });
   } catch (err) {
-    return res
-      .status(500)
-      .json({ message: "Error al iniciar sesión", details: err.message });
+    return res.status(500).json({ message: "Error al iniciar sesión", details: err.message });
   }
 };
 
