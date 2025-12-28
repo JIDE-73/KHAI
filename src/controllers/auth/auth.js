@@ -5,7 +5,7 @@ const setAuthCookies = (res, session) => {
   const { access_token, refresh_token, expires_in } = session;
   const cookieOptions = {
     httpOnly: true,
-    secure: true,
+    secure: process.env.ENV === "production",
     sameSite: "none",
     maxAge: expires_in ? expires_in * 1000 : undefined,
   };
@@ -34,7 +34,7 @@ const register = async (req, res) => {
       email,
       password,
       options: {
-        emailRedirectTo: "http://localhost:3730/auth/confirm",
+        emailRedirectTo: "http://localhost:3000/confirm",
       },
     });
 
