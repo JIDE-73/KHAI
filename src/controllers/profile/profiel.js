@@ -1,10 +1,13 @@
-import prisma from "../../../prisma/prismaClient.js";
 import { check, validationResult } from "express-validator";
+import prisma from "../../../prisma/prismaClient.js";
 
 const getProfile = async (req, res) => {
-  const { userId } = req.body;
+  const userId = req.user?.id;
 
-  await check("userId").notEmpty().withMessage("El ID de usuario es obligatorio.").run(req);
+  await check("userId")
+    .isUUID()
+    .withMessage("El ID de usuario no es válido.")
+    .run(req);
   const errors = validationResult(req);
 
   if (!errors.isEmpty()) {
@@ -20,7 +23,7 @@ const getProfile = async (req, res) => {
             roles: true,
           },
         },
-        serch_history: true,
+        search_logs: true,
       },
     });
 
@@ -35,4 +38,87 @@ const getProfile = async (req, res) => {
   }
 };
 
-export { getProfile };
+const createProfile = async (req, res) => {
+  const { userId, username, teamname, teamrole, teamid } = req.body;
+
+  await check("userId").isUUID().withMessage("El ID de usuario no es válido.").run(req);
+  await check("username").isString().withMessage("El nombre de usuario no es válido.").run(req);
+
+  const errors = validationResult(req);
+
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  var permissions = "Reader";
+
+  try {
+    if (teamrole === "Owner") {
+      permissions = "Admin";
+
+      const profile = await prisma.profiles.create({
+        data: {
+          id: userId,
+          name: username,
+          permissions,
+        },
+      });
+
+      if (!profile) {
+        return res.status(400).json({ error: "Error al crear el perfil." });
+      }
+
+      const team = await prisma.team.create({
+        data: {
+          name: teamname,
+          owner_id: profile.id,
+        },
+      });
+
+      if (!team) {
+        return res.status(400).json({ error: "Error al crear el equipo." });
+      }
+
+      const teamMember = await prisma.team_members.create({
+        data: {
+          team_id: team.id,
+          profile_id: profile.id,
+          role: teamrole,
+        },
+      });
+
+      if (!teamMember) {
+        return res.status(400).json({ error: "Error al crear el miembro del equipo." });
+      }
+    } else {
+      const profile = await prisma.profiles.create({
+        data: {
+          users: userId,
+          name: username,
+          permissions,
+        },
+      });
+
+      if (!profile) {
+        return res.status(400).json({ error: "Error al crear el perfil." });
+      }
+      const teamMember = await prisma.team_members.create({
+        data: {
+          team_id: teamid,
+          profile_id: profile.id,
+        },
+      });
+      if (!teamMember) {
+        return res
+          .status(400)
+          .json({ error: "Error al crear el miembro del equipo." });
+      }
+    }
+    return res.status(201).json({ message: "Perfil creado exitosamente."});
+  } catch (error) {
+    console.error("Error al crear el perfil:", error);
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+};
+
+export { getProfile, createProfile };
