@@ -1,12 +1,12 @@
 import prisma from "../../../prisma/prismaClient.js";
-import { check, validationResult } from "express-validator";
+import { param, validationResult } from "express-validator";
 import crypto from "crypto";
 
 const uploadDocument = async (req, res) => {
-  const { userId } = req.body;
+  const { userId } = req.params;
   const file = req.file;
 
-    // Tipos de archivo permitidos
+  // Tipos de archivo permitidos
   const allowedMimeTypes = [
     "application/pdf",
     "application/msword",
@@ -14,7 +14,10 @@ const uploadDocument = async (req, res) => {
     "text/plain",
   ];
 
-  await check("userId").isString().withMessage("userId must be a string").run(req);
+  await param("userId")
+    .isString()
+    .withMessage("userId must be a string")
+    .run(req);
 
   const errors = validationResult(req);
 
@@ -27,11 +30,11 @@ const uploadDocument = async (req, res) => {
   // Verificar tipo de archivo
   if (!allowedMimeTypes.includes(file.mimetype)) {
     return res.status(401).json({ message: "File type not allowed" });
-    }
-    
-    if (file.size > 1024 * 1024 * 5) {
-        return res.status(402).json({ message: "File size is too large" });
-    }
+  }
+
+  if (file.size > 1024 * 1024 * 5) {
+    return res.status(402).json({ message: "File size is too large" });
+  }
 
   try {
     // Calcular MD5 del archivo
@@ -56,10 +59,10 @@ const uploadDocument = async (req, res) => {
         file_size: file.size,
       },
     });
-      
+
     // Crear los chunks
-      const chunks = [];
-      const CHUNK_SIZE = 1024 * 1024; // 1MB
+    const chunks = [];
+    const CHUNK_SIZE = 1024 * 1024; // 1MB
     for (let offset = 0; offset < file.buffer.length; offset += CHUNK_SIZE) {
       const slice = file.buffer.subarray(offset, offset + CHUNK_SIZE);
       chunks.push(slice.toString("base64"));
@@ -73,20 +76,22 @@ const uploadDocument = async (req, res) => {
         content,
       })),
     });
-      
 
     return res.status(200).json({
       message: "Documento subido correctamente",
-        documentId: document.id,
-        chunkCount: chunks.length,
-        profile_id: profile.id,
+      documentId: document.id,
+      chunkCount: chunks.length,
+      profile_id: profile.id,
       profile_name: profile.name,
     });
-      
   } catch (error) {
-      if (error.code === "P2002") { return res.status(409).json({ message: "Document already exists", }); }
-      
-    return res.status(500).json({ message: "Error al subir el documento", details: error.message });
+    if (error.code === "P2002") {
+      return res.status(409).json({ message: "Document already exists" });
+    }
+
+    return res
+      .status(500)
+      .json({ message: "Error al subir el documento", details: error.message });
   }
 };
 
