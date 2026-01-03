@@ -95,4 +95,12 @@ const uploadDocument = async (req, res) => {
   }
 };
 
-export { uploadDocument };
+const getMyDocument = async (req, res) => {
+  const { userId } = req.params;
+  const document = await prisma.documents.findMany({
+    where: { profile_id: userId },
+  });
+  return res.status(200).json({ document });
+};
+
+export { uploadDocument, getMyDocument };

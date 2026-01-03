@@ -1,6 +1,6 @@
 import multer from "multer";
 import express from "express";
-import { uploadDocument } from "../../controllers/docs/docs.js";
+import { uploadDocument, getMyDocument } from "../../controllers/docs/docs.js";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -12,5 +12,6 @@ const upload = multer({
 const router = express.Router();
 
 router.post("/upload/:userId", upload.single("file"), uploadDocument);
+router.get("/myDocuments/:userId", getMyDocument);
 
 export default router;
