@@ -9,6 +9,7 @@ import authRoutes from "../routes/auth/auth.js";
 // PROTECTED
 import profileRoutes from "../routes/profile/profiel.js";
 import docsRoutes from "../routes/docs/docs.js";
+import teamsRoutes from "../routes/teams/teams.js";
 
 const app = express();
 app.set("port", process.env.PORT || 3000);
@@ -39,6 +40,7 @@ app.use(validateCookies);
 // PROTECTED
 app.use("/profile", profileRoutes);
 app.use("/docs", docsRoutes);
+app.use("/teams", teamsRoutes);
 
 // Inicializacion del server
 app.listen(app.get("port"), () => {
