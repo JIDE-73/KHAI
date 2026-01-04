@@ -18,7 +18,7 @@ const teamMembers = async (req, res) => {
     // owner_id is not unique; use findFirst to fetch a team for this owner
     const team = await prisma.team.findFirst({
       where: { owner_id: userId },
-      include: { members: true },
+      include: { members: { include: { profile: true } } },
     });
 
     if (!team) {
@@ -27,7 +27,6 @@ const teamMembers = async (req, res) => {
 
     return res.status(200).json({ message: "Equipo encontrado", team });
   } catch (error) {
-    console.log(error);
     return res
       .status(500)
       .json({ message: "Error al buscar el equipo", details: error.message });
