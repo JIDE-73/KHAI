@@ -106,4 +106,46 @@ const querySearch = async (req, res) => {
   }
 };
 
-export { querySearch };
+const getSearchLogs = async (req, res) => {
+  const { profileId } = req.params;
+
+  await check("profileId").notEmpty().withMessage("Missing profileId").run(req);
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      message: "Validation failed",
+      errors: errors.array(),
+    });
+  }
+
+  try {
+    const logs = await prisma.search_log.findMany({
+      where: { profile_id: profileId },
+      orderBy: { created_at: "desc" },
+      take: 1,
+      include: {
+        results: {
+          include: {
+            document: {
+              select: {
+                id: true,
+                title: true,
+                created_at: true,
+              },
+            },
+            links: true,
+          },
+        },
+      },
+    });
+
+    res.status(200).json({ message: "Search logs fetched successfully", logs });
+  } catch (error) {
+    console.log(error);
+    return res
+      .status(500)
+      .json({ message: "Search error", details: error.message });
+  }
+};
+
+export { querySearch, getSearchLogs };
