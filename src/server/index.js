@@ -3,6 +3,8 @@ import express from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import validateCookies from "../middlewares/authMiddleware.js";
+import swaggerUi from "swagger-ui-express";
+import swaggerSpec from "./swagger.js";
 
 // Public
 import authRoutes from "../routes/auth/auth.js";
@@ -27,6 +29,12 @@ app.use(
     credentials: true,
   })
 );
+
+// Swagger docs (public)
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.get("/api-docs.json", (req, res) => {
+  res.json(swaggerSpec);
+});
 
 // PUBLIC
 app.use("/serverAlive", (req, res) => {
