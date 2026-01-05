@@ -1,8 +1,25 @@
 import prisma from "../../../prisma/prismaClient.js";
 import { check, param, validationResult } from "express-validator";
 import crypto from "crypto";
+import { createRequire } from "module";
+import mammoth from "mammoth";
+
+const require = createRequire(import.meta.url);
+const { PdfReader } = require("pdfreader");
+
+const extractPdfText = (buffer) =>
+  new Promise((resolve, reject) => {
+    let text = "";
+    new PdfReader().parseBuffer(buffer, (err, item) => {
+      if (err) return reject(err);
+      if (!item) return resolve(text);
+      if (item.text) text += item.text + " ";
+    });
+  });
 
 const uploadDocument = async (req, res) => {
+  const CHUNK_SIZE = 1000; // char
+
   const { userId } = req.params;
   const file = req.file;
 
@@ -37,8 +54,31 @@ const uploadDocument = async (req, res) => {
   }
 
   try {
-    // Calcular MD5 del archivo
-    const md5Hash = crypto.createHash("md5").update(file.buffer).digest("hex");
+    // extraer el texto del archivo
+    let extractedText = "";
+
+    if (file.mimetype === "application/pdf") {
+      extractedText = await extractPdfText(file.buffer);
+    }
+
+    if (file.mimetype.includes("word")) {
+      const result = await mammoth.extractRawText({
+        buffer: file.buffer,
+      });
+      extractedText = result.value;
+    }
+
+    if (file.mimetype === "text/plain") {
+      extractedText = file.buffer.toString("utf-8");
+    }
+
+    extractedText = extractedText.replace(/\s+/g, " ").trim();
+
+    if (!extractedText) {
+      return res.status(422).json({
+        message: "No se pudo extraer texto del documento",
+      });
+    }
 
     const profile = await prisma.profiles.findUnique({
       where: { id: userId },
@@ -47,6 +87,9 @@ const uploadDocument = async (req, res) => {
     if (!profile) {
       return res.status(403).json({ message: "Profile not found" });
     }
+
+    // Calcular MD5 del archivo
+    const md5Hash = crypto.createHash("md5").update(file.buffer).digest("hex");
 
     // Crear el documento
     const document = await prisma.documents.create({
@@ -62,29 +105,26 @@ const uploadDocument = async (req, res) => {
 
     // Crear los chunks
     const chunks = [];
-    const CHUNK_SIZE = 1024 * 1024; // 1MB
-    for (let offset = 0; offset < file.buffer.length; offset += CHUNK_SIZE) {
-      const slice = file.buffer.subarray(offset, offset + CHUNK_SIZE);
-      chunks.push(slice.toString("base64"));
+    for (let i = 0; i < extractedText.length; i += CHUNK_SIZE) {
+      chunks.push(extractedText.slice(i, i + CHUNK_SIZE));
     }
 
     // Guardar cada chunk con su índice
     await prisma.document_chunk.createMany({
-      data: chunks.map((content, idx) => ({
+      data: chunks.map((text, idx) => ({
         document_id: document.id,
         chunk_index: idx,
-        content,
+        content: text,
       })),
     });
 
     return res.status(200).json({
       message: "Documento subido correctamente",
-      documentId: document.id,
       chunkCount: chunks.length,
-      profile_id: profile.id,
-      profile_name: profile.name,
     });
   } catch (error) {
+    console.log(error);
+
     if (error.code === "P2002") {
       return res.status(409).json({ message: "Document already exists" });
     }
