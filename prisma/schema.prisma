@@ -410,46 +410,122 @@ model users {
   @@schema("auth")
 }
 
-// -----------------------------  SCHEMAS DE TRABAJO PUBLIC -----------------------------
-enum permissions{
+model profiles {
+  id          String         @id @db.Uuid
+  name        String
+  created_at  DateTime       @default(now()) @db.Timestamptz(6)
+  permissions permissions    @default(Reader)
+  documents   documents[]
+  links       links[]
+  users       users          @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  search_logs search_log[]
+  team        team?
+  memberships team_members[]
+
+  @@schema("public")
+}
+
+model team {
+  id         String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String         @unique
+  created_at DateTime       @default(now()) @db.Timestamptz(6)
+  owner_id   String         @unique @db.Uuid
+  owner      profiles       @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+  members    team_members[]
+
+  @@index([owner_id])
+  @@schema("public")
+}
+
+model team_members {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  team_id    String    @db.Uuid
+  profile_id String    @db.Uuid
+  role       team_role @default(Member)
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+  profile    profiles  @relation(fields: [profile_id], references: [id], onDelete: Cascade)
+  team       team      @relation(fields: [team_id], references: [id], onDelete: Cascade)
+
+  @@unique([team_id, profile_id])
+  @@schema("public")
+}
+
+model documents {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title          String
+  content        String
+  profile_id     String           @db.Uuid
+  created_at     DateTime         @default(now()) @db.Timestamptz(6)
+  content_sha    String?          @unique
+  file_size      Int
+  source         String?
+  chunks         document_chunk[]
+  profile        profiles         @relation(fields: [profile_id], references: [id], onDelete: Cascade)
+  search_results search_result[]
+
+  @@index([profile_id, created_at])
+  @@schema("public")
+}
+
+model document_chunk {
+  id          String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  document_id String                   @db.Uuid
+  chunk_index Int
+  content     String
+  token_count Int?
+  created_at  DateTime                 @default(now()) @db.Timestamptz(6)
+  content_tsv Unsupported("tsvector")? @default(dbgenerated("to_tsvector('spanish'::regconfig, content)"))
+  document    documents                @relation(fields: [document_id], references: [id], onDelete: Cascade)
+
+  @@index([document_id, chunk_index])
+  @@index([content_tsv], map: "idx_document_chunk_tsv", type: Gin)
+  @@schema("public")
+}
+
+model links {
+  id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title         String
+  url           String
+  profile_id    String          @db.Uuid
+  created_at    DateTime        @default(now()) @db.Timestamptz(6)
+  profile       profiles        @relation(fields: [profile_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  searchResults search_result[]
+
+  @@index([profile_id])
+  @@schema("public")
+}
+
+model search_log {
+  id         String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profile_id String          @db.Uuid
+  query      String
+  created_at DateTime        @default(now())
+  profile    profiles        @relation(fields: [profile_id], references: [id], onDelete: Cascade)
+  results    search_result[]
+
+  @@index([profile_id])
+  @@schema("public")
+}
+
+model search_result {
+  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  search_id   String      @db.Uuid
+  result_type result_type
+  document_id String?     @db.Uuid
+  links_id    String?     @db.Uuid
+  document    documents?  @relation(fields: [document_id], references: [id])
+  links       links?      @relation(fields: [links_id], references: [id])
+  search      search_log  @relation(fields: [search_id], references: [id], onDelete: Cascade)
+
+  @@index([search_id])
+  @@schema("public")
+}
+
+enum permissions {
   Admin
   Reader
   Editor
 
-  @@schema("public")
-}
-
-model profiles {
-  id         String   @id @db.Uuid
-  name       String
-  created_at DateTime @default(now()) @db.Timestamptz(6)
-
-  users users @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  permissions permissions @default(Reader)
-  team       team[]
-  memberships team_members[]
-
-
-  documents   documents[]
-  links     links[]
-  search_logs search_log[]
-
-  @@schema("public")
-}
-
-
-model team {
-  id               String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name             String        @unique
-  created_at       DateTime      @default(now()) @db.Timestamptz(6)
-
-  owner_id         String        @db.Uuid @unique
-  owner            profiles      @relation(fields: [owner_id], references: [id], onDelete: Cascade)
-  
-  members          team_members[]
-
-  @@index([owner_id])
   @@schema("public")
 }
 
@@ -460,105 +536,12 @@ enum team_role {
   @@schema("public")
 }
 
-model team_members {
-  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  team_id    String    @db.Uuid
-  profile_id String    @db.Uuid
-
-  role       team_role @default(Member)
-  created_at DateTime  @default(now()) @db.Timestamptz(6)
-
-  team    team     @relation(fields: [team_id], references: [id], onDelete: Cascade)
-  profile profiles @relation(fields: [profile_id], references: [id], onDelete: Cascade)
-
-  @@unique([team_id, profile_id])
-  @@schema("public")
-}
-
-model documents {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  title       String
-  source      String?
-  content     String
-  content_sha String?  @unique
-  profile_id  String   @db.Uuid
-  file_size   Int
-  created_at  DateTime @default(now()) @db.Timestamptz(6)
-
-  profile profiles @relation(fields: [profile_id], references: [id], onDelete: Cascade)
-  chunks  document_chunk[]
-  search_results search_result[]
-
-
-  @@index([profile_id, created_at])
-  @@schema("public")
-}
-
-model document_chunk {
-  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  document_id  String   @db.Uuid
-  chunk_index  Int
-  content      String
-  token_count  Int?
-  content_tsv  Unsupported("tsvector")?
-  created_at   DateTime @default(now()) @db.Timestamptz(6)
-
-  document documents @relation(fields: [document_id], references: [id], onDelete: Cascade)
-
-  @@index([document_id, chunk_index])
-  @@schema("public")
-}
-
-model links {
-  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  title      String
-  url        String
-  profile_id String   @db.Uuid
-  created_at DateTime @default(now()) @db.Timestamptz(6)
-
-  profile       profiles        @relation(fields: [profile_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  searchResults search_result[]
-
-  @@index([profile_id])
-  @@schema("public")
-}
-
-model search_log {
-  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  profile_id String   @db.Uuid
-  query      String
-  created_at DateTime @default(now())
-
-  profile profiles        @relation(fields: [profile_id], references: [id], onDelete: Cascade)
-  results search_result[]
-
-  @@index([profile_id])
-  @@schema("public")
-}
-
 enum result_type {
   document
   links
 
   @@schema("public")
 }
-
-model search_result {
-  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  search_id   String      @db.Uuid
-  result_type result_type
-  document_id String?     @db.Uuid
-  links_id   String?     @db.Uuid
-
-  search   search_log @relation(fields: [search_id], references: [id], onDelete: Cascade)
-  document documents? @relation(fields: [document_id], references: [id])
-  links   links?   @relation(fields: [links_id], references: [id])
-
-  @@index([search_id])
-  @@schema("public")
-}
-
-// -----------------------------  SCHEMAS DE TRABAJO PUBLIC -----------------------------
 
 enum aal_level {
   aal1
