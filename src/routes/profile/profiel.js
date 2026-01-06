@@ -2,6 +2,7 @@ import express from "express";
 import {
   getProfile,
   createProfile,
+  profielVerification,
 } from "../../controllers/profile/profiel.js";
 
 const router = express.Router();
@@ -46,4 +47,34 @@ router.get("/myProfile", getProfile);
  *       401: { description: No autorizado }
  */
 router.post("/createProfile", createProfile);
+
+/**
+ * @openapi
+ * /profile/verifyProfile/{userId}:
+ *   post:
+ *     summary: Verifica el perfil del usuario
+ *     tags: [Profile]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: userId
+ *         in: path
+ *         required: true
+ *         description: ID del usuario
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Perfil verificado exitosamente
+ *       400:
+ *         description: Datos inválidos
+ *       401:
+ *         description: No autorizado
+ *       404:
+ *         description: Perfil no encontrado
+ *       500:
+ *         description: Error interno del servidor
+ */
+router.get("/verifyProfile/:userId", profielVerification);
+
 export default router;

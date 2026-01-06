@@ -130,4 +130,36 @@ const createProfile = async (req, res) => {
   }
 };
 
-export { getProfile, createProfile };
+const profielVerification = async (req, res) => {
+  const { userId } = req.params;
+
+  await check("userId")
+    .isUUID()
+    .withMessage("El ID de usuario no es válido.")
+    .run(req);
+
+  const errors = validationResult(req);
+
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  try {
+    const profile = await prisma.profiles.findUnique({
+      where: { id: userId },
+    });
+
+    console.log("profile", profile);
+
+    if (!profile) {
+      return res.status(404).json({ error: "Perfil no encontrado." });
+    }
+
+    return res.status(200).json({ message: "Perfil verificado exitosamente." });
+  } catch (error) {
+    console.error("Error al verificar el perfil:", error);
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+};
+
+export { getProfile, createProfile, profielVerification };
