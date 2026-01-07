@@ -143,7 +143,11 @@ const profielVerification = async (req, res) => {
       where: { id: userId },
       include: {
         team: true,
-        memberships: true,
+        memberships: {
+          include: {
+            team: true,
+          },
+        },
       }
     });
 
