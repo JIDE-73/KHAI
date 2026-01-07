@@ -21,7 +21,7 @@ const router = express.Router();
  *       401:
  *         description: No autorizado
  */
-router.get("/myProfile", getProfile);
+router.get("/myProfile/:userId", getProfile);
 
 /**
  * @openapi
