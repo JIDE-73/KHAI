@@ -459,6 +459,8 @@ model documents {
   content_sha    String?          @unique
   file_size      Int
   source         String?
+  count          Int              @default(0)
+  
   chunks         document_chunk[]
   profile        profiles         @relation(fields: [profile_id], references: [id], onDelete: Cascade)
   search_results search_result[]

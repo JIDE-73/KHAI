@@ -202,6 +202,13 @@ const getDocumentById = async (req, res) => {
       },
     });
 
+    const count = await prisma.documents.update({
+      where: { id: documentId },
+      data: {
+        count: document.count + 1,
+      },
+    });
+
     if (!document) {
       return res.status(404).json({ message: "Documento no encontrado" });
     }
