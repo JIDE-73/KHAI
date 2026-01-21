@@ -173,7 +173,6 @@ const uploadLink = async (req, res) => {
 const getMyDocument = async (req, res) => {
   const { userId } = req.params;
   const document = await prisma.documents.findMany({
-    where: { profile_id: userId },
     select: {
       id: true,
       title: true,
@@ -188,7 +187,6 @@ const getMyDocument = async (req, res) => {
 const getMyLinks = async (req, res) => {
   const { userId } = req.params;
   const links = await prisma.links.findMany({
-    where: { profile_id: userId },
     include: {
       profile: true,
     },

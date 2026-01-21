@@ -43,12 +43,10 @@ const querySearch = async (req, res) => {
     dc.content_tsv @@ to_tsquery('spanish', ${tsQuery})
     OR d.title ILIKE '%' || ${query} || '%'
   )
-  AND d.profile_id = ${profileId}
 `;
 
     const links = await prisma.links.findMany({
       where: {
-        profile_id: profileId,
         OR: [
           { title: { contains: query, mode: "insensitive" } },
           { url: { contains: query, mode: "insensitive" } },
